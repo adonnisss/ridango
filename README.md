@@ -106,7 +106,7 @@ V projektu uporabljamo dve tabeli za demonstracijo shardinga:
 ## Zaslonski posnetki
 
 ### Kubernetes Dashboard
-![Kubernetes Dashboard](Screenshots/Kubernetes/Dashboard/Kubernetes_Dashboard_1.png)
+![Kubernetes Dashboard](Screenshots/Kubernetes/Dashboard/Kubernetes_dashboard_1.png)
 
 ### Delujoči podi
 ![Podi](screenshots/pods-running.png)

@@ -1,0 +1,60 @@
+# Values for Citus Helm chart
+image:
+  repository: citusdata/citus
+  tag: "13.0.3"
+  pullPolicy: IfNotPresent
+
+# Database configurations
+postgresql:
+  username: postgres
+  password: postgres  # samo za example
+  database: postgres
+  port: 5432
+
+# Coordinator node settings
+coordinator:
+  name: citus-coordinator
+  replicas: 1  # Citus coordinator
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  persistence:
+    enabled: true
+    storageClass: ""  # default
+    size: 8Gi
+  service:
+    type: ClusterIP
+    port: 5432
+
+# Worker nodes settings
+workers:
+  name: citus-worker
+  replicas: 2 
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 8Gi
+  service:
+    type: ClusterIP
+    port: 5432
+
+# Service account settings
+serviceAccount:
+  create: true
+  name: ""
+
+# Init job settings
+init:
+  enabled: true
+  timeout: 300

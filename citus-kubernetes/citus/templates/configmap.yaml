@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "citus.fullname" . }}-scripts
+  labels:
+    {{- include "citus.labels" . | nindent 4 }}
+data:
+  setup-citus.sh: |-
+    #!/bin/bash
+    set -e
+
+    # Wait for coordinator to be ready
+    echo "Waiting for coordinator to be ready..."
+    until pg_isready -h {{ .Values.coordinator.name }} -p {{ .Values.postgresql.port }} -U {{ .Values.postgresql.username }}; do
+      sleep 2
+    done
+
+    # Wait for workers to be ready
+    echo "Waiting for worker-0 to be ready..."
+    until pg_isready -h {{ .Values.workers.name }}-0.{{ .Values.workers.name }} -p {{ .Values.postgresql.port }} -U {{ .Values.postgresql.username }}; do
+      sleep 2
+    done
+    
+    echo "Waiting for worker-1 to be ready..."
+    until pg_isready -h {{ .Values.workers.name }}-1.{{ .Values.workers.name }} -p {{ .Values.postgresql.port }} -U {{ .Values.postgresql.username }}; do
+      sleep 2
+    done
+
+    # Connect to coordinator and set up Citus extension
+    echo "Setting up Citus extension and adding worker nodes..."
+    PGPASSWORD={{ .Values.postgresql.password }} psql -h {{ .Values.coordinator.name }} -p {{ .Values.postgresql.port }} -U {{ .Values.postgresql.username }} -d {{ .Values.postgresql.database }} <<-EOSQL
+      -- Create the Citus extension
+      CREATE EXTENSION IF NOT EXISTS citus;
+
+      -- Add worker nodes (using statefulset DNS names)
+      SELECT * from master_add_node('{{ .Values.workers.name }}-0.{{ .Values.workers.name }}', {{ .Values.postgresql.port }});
+      SELECT * from master_add_node('{{ .Values.workers.name }}-1.{{ .Values.workers.name }}', {{ .Values.postgresql.port }});
+      
+      -- Verify nodes
+      SELECT * FROM master_get_active_worker_nodes();
+    EOSQL
+
+  init-sample-db.sh: |-
+    #!/bin/bash
+    set -e
+
+    # Wait for coordinator to be ready
+    echo "Waiting for coordinator to be ready..."
+    until pg_isready -h {{ .Values.coordinator.name }} -p {{ .Values.postgresql.port }} -U {{ .Values.postgresql.username }}; do
+      sleep 2
+    done
+
+    # Connect to coordinator and create a sample distributed database
+    echo "Creating sample database and tables..."
+    PGPASSWORD={{ .Values.postgresql.password }} psql -h {{ .Values.coordinator.name }} -p {{ .Values.postgresql.port }} -U {{ .Values.postgresql.username }} -d {{ .Values.postgresql.database }} <<-EOSQL
+      -- Create a dedicated database for our application
+      CREATE DATABASE appdb;
+      
+      -- Connect to the new database
+      \c appdb
+      
+      -- Create Citus extension in the new database
+      CREATE EXTENSION IF NOT EXISTS citus;
+      
+      -- Add worker nodes to the new database (required for each database)
+      SELECT * from master_add_node('{{ .Values.workers.name }}-0.{{ .Values.workers.name }}', {{ .Values.postgresql.port }});
+      SELECT * from master_add_node('{{ .Values.workers.name }}-1.{{ .Values.workers.name }}', {{ .Values.postgresql.port }});
+      
+      -- Create table schema
+      CREATE TABLE users (
+        id serial PRIMARY KEY,
+        name text NOT NULL,
+        email text NOT NULL,
+        created_at timestamp DEFAULT now()
+      );
+      
+      -- Create related tables for demonstration
+      CREATE TABLE orders (
+        id serial,
+        user_id integer NOT NULL,
+        amount numeric(10,2),
+        created_at timestamp DEFAULT now(),
+        PRIMARY KEY (id, user_id)
+      );
+      
+      -- Distribute tables across shards
+      SELECT create_distributed_table('users', 'id');
+      SELECT create_distributed_table('orders', 'user_id');
+      
+      -- Insert some sample data
+      INSERT INTO users (name, email) 
+      VALUES 
+        ('User 1', 'user1@example.com'),
+        ('User 2', 'user2@example.com'),
+        ('User 3', 'user3@example.com'),
+        ('User 4', 'user4@example.com'),
+        ('User 5', 'user5@example.com');
+        
+      INSERT INTO orders (user_id, amount)
+      VALUES
+        (1, 99.99),
+        (1, 49.99),
+        (2, 75.50),
+        (3, 199.99),
+        (5, 149.99);
+      
+      -- Verify sharding
+      SELECT logicalrelid, count(*)
+      FROM pg_dist_shard
+      GROUP BY logicalrelid;
+      
+      -- See data placement
+      SELECT
+        shardid,
+        logicalrelid::text as table_name,
+        nodename,
+        nodeport
+      FROM
+        pg_dist_shard
+        JOIN pg_dist_placement USING (shardid)
+        JOIN pg_dist_node ON nodeId = nodeid
+      ORDER BY
+        table_name, shardid;
+    EOSQL
+    
+    echo "Sample database setup complete!"

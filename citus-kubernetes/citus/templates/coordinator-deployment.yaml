@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.coordinator.name }}
+  labels:
+    {{- include "citus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: coordinator
+spec:
+  replicas: {{ .Values.coordinator.replicas }}
+  selector:
+    matchLabels:
+      {{- include "citus.coordinatorSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "citus.coordinatorSelectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "citus.serviceAccountName" . }}
+      containers:
+        - name: {{ .Chart.Name }}-coordinator
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.username }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.postgresql.password }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.database }}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            # Citus-specific environment variables
+            - name: CITUS_NODE_ROLE
+              value: "coordinator"
+          ports:
+            - name: postgres
+              containerPort: {{ .Values.postgresql.port }}
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.postgresql.username }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.postgresql.username }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.coordinator.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          {{- if .Values.coordinator.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.coordinator.name }}-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+---
+{{- if .Values.coordinator.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.coordinator.name }}-pvc
+  labels:
+    {{- include "citus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: coordinator
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.coordinator.persistence.storageClass }}
+  storageClassName: {{ .Values.coordinator.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.coordinator.persistence.size }}
+{{- end }}

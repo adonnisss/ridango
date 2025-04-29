@@ -1,0 +1,36 @@
+Thank you for installing {{ .Chart.Name }} version {{ .Chart.AppVersion }}.
+
+Your Citus cluster has been deployed with:
+- 1 Coordinator node: {{ .Values.coordinator.name }}
+- {{ .Values.workers.replicas }} Worker nodes: {{ .Values.workers.name }}-[0..{{ sub .Values.workers.replicas 1 }}]
+
+To connect to your Citus coordinator from within the cluster, use:
+  Host: {{ .Values.coordinator.name }}
+  Port: {{ .Values.postgresql.port }}
+  User: {{ .Values.postgresql.username }}
+  Password: {{ .Values.postgresql.password }}
+  Database: {{ .Values.postgresql.database }}
+
+To connect to your Citus coordinator from your local machine, run:
+  # Forward port to the Citus coordinator:
+  kubectl port-forward svc/{{ .Values.coordinator.name }} {{ .Values.postgresql.port }}:{{ .Values.postgresql.port }}
+
+  # Then connect using psql (in a new terminal):
+  PGPASSWORD={{ .Values.postgresql.password }} psql -h localhost -p {{ .Values.postgresql.port }} -U {{ .Values.postgresql.username }} {{ .Values.postgresql.database }}
+
+A sample distributed database 'appdb' has been created. You can connect to it and query the distributed tables:
+  # Connect to the sample database:
+  PGPASSWORD={{ .Values.postgresql.password }} psql -h localhost -p {{ .Values.postgresql.port }} -U {{ .Values.postgresql.username }} appdb
+
+  # Query the distributed tables:
+  SELECT * FROM users;
+  SELECT * FROM orders;
+
+To see how the data is sharded:
+  SELECT * FROM pg_dist_shard;
+  SELECT * FROM pg_dist_placement;
+
+To verify worker nodes:
+  SELECT * FROM master_get_active_worker_nodes();
+
+Enjoy your distributed PostgreSQL database!

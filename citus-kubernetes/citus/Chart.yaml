@@ -1,0 +1,16 @@
+apiVersion: v2
+name: citus
+description: A Helm chart for Citus - Distributed PostgreSQL
+type: application
+version: 0.1.0
+appVersion: "13.0.3"
+keywords:
+  - postgresql
+  - postgres
+  - database
+  - citus
+  - distributed
+  - sharding
+maintainers:
+  - name: Anej Lah
+    email: anej.lah435@gmail.com

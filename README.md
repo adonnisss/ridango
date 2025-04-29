@@ -112,10 +112,12 @@ V projektu uporabljamo dve tabeli za demonstracijo shardinga:
 ![Podi](Screenshots/Kubernetes/Pods/pods.png)
 
 ### Distribucija podatkov
-![Sharding](screenshots/database-sharding.png)
+![Sharding](Screenshots/DB/shards.png)
 
 ### Distribucija shardov po vozliščih
-![Distribucija po vozliščih](screenshots/node-distribution.png)
+![Distribucija po vozliščih](Screenshots/DB/st_shardov_po_vozliscih.png)
+
+Ostali posnetki zaslonov so v mapi "Screenshots".
 
 ## Zaključek
 

@@ -109,7 +109,7 @@ V projektu uporabljamo dve tabeli za demonstracijo shardinga:
 ![Kubernetes Dashboard](Screenshots/Kubernetes/Dashboard/Kubernetes_dashboard_1.png)
 
 ### Delujoči podi
-![Podi](screenshots/pods-running.png)
+![Podi](Screenshots/Kubernetes/Pods/pods.png)
 
 ### Distribucija podatkov
 ![Sharding](screenshots/database-sharding.png)
